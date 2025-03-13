@@ -1,3 +1,8 @@
+local pythonPath = function()
+  local cwd = '/Users/jnao/Code/home-automator/django/.venv/bin/python'
+  return cwd
+end
+
 return {
   'mfussenegger/nvim-dap',
   dependencies = {
@@ -9,7 +14,64 @@ return {
     local dap, dapui = require 'dap', require 'dapui'
 
     require('dapui').setup()
-    require('dap-python').setup()
+
+    local set_python_dap = function()
+      require('dap-python').setup() -- earlier so setup the various defaults ready to be replaced
+      dap.configurations.python = {
+        {
+          type = 'python',
+          request = 'launch',
+          name = 'Launch file',
+          program = '${file}',
+          pythonPath = pythonPath(),
+        },
+        {
+          type = 'python',
+          request = 'launch',
+          name = '1 Django',
+          program = '/Users/jnao/Code/home-automator/django/manage.py',
+          args = { 'runserver', '--noreload', '0.0.0.0:8000' },
+          justMyCode = true,
+          django = true,
+          console = 'integratedTerminal',
+        },
+        {
+          type = 'python',
+          request = 'attach',
+          name = 'Attach remote',
+          connect = function()
+            return {
+              host = '127.0.0.1',
+              port = 5678,
+            }
+          end,
+        },
+        {
+          type = 'python',
+          request = 'launch',
+          name = 'Launch file with arguments',
+          program = '${file}',
+          args = function()
+            local args_string = vim.fn.input 'Arguments: '
+            return vim.split(args_string, ' +')
+          end,
+          console = 'integratedTerminal',
+          pythonPath = pythonPath(),
+        },
+      }
+
+      dap.adapters.python = {
+        type = 'executable',
+        command = pythonPath(),
+        args = { '-m', 'debugpy.adapter' },
+      }
+    end
+    set_python_dap()
+    vim.api.nvim_create_autocmd({ 'DirChanged' }, {
+      callback = function()
+        set_python_dap()
+      end,
+    })
 
     dap.listeners.before.attach.dapui_config = function()
       dapui.open()
